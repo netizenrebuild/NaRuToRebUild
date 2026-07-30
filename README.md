@@ -1,25 +1,29 @@
 # Naruto Rebuild + Real-Debrid Stremio Addon
 
-A Stremio addon for streaming the Naruto Rebuild catalog using your own Real-Debrid library.
+Stream the Naruto Rebuild catalog using **your own** Real-Debrid account.
 
-## Installation
+## Install
 
-1. Visit the configuration page:
+1. Open:
 
-https://YOUR-VERCEL-URL.vercel.app/configure
+https://na-ru-to-reb-uild.vercel.app/configure
 
 2. Paste your Real-Debrid API token.
 3. Click **Install**.
-4. Stremio will install a personalized addon that uses **your own** Real-Debrid account.
+4. Stremio will install your personalized addon.
 
 ## Features
 
-- Uses your own Real-Debrid account
-- No shared API tokens
-- No database required
-- Personalized installation for each user
+- ✅ Uses your own Real-Debrid account
+- ✅ No shared API tokens
+- ✅ No database required
+- ✅ Personalized installation for every user
 
 ## Privacy
 
-- Your Real-Debrid token is used only for your personalized addon configuration.
-- The server does not use a shared Real-Debrid account.
+- Your Real-Debrid token is never shared with other users.
+- This addon does not use a shared Real-Debrid account.
+
+## Issues
+
+If something isn't working, that is unfortunate.
