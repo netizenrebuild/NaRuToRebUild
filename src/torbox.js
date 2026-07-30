@@ -1,4 +1,7 @@
-import { basename, findBestFile } from "./matcher.js";
+import {
+  basename,
+  findMatchingFiles
+} from "./matcher.js";
 
 const API = "https://api.torbox.app/v1/api";
 const cache = new Map();
@@ -72,10 +75,30 @@ async function getLibrary(token) {
   return files;
 }
 
-export async function findTorBoxEpisodeStream(
+export async function findTorBoxEpisodeStreams(
   episode,
   token
 ) {
+  const files = await getLibrary(token);
+  const matches = findMatchingFiles(files, episode);
+
+  return matches.slice(0, 10).map((match) => {
+    const params = new URLSearchParams({
+      token: token.trim(),
+      torrent_id: String(match.torrentId),
+      file_id: String(match.fileId),
+      redirect: "true",
+      append_name: "true"
+    });
+
+    return {
+      url: `${API}/torrents/requestdl?${params}`,
+      filename: basename(match.path),
+      bytes: match.bytes || 0,
+      score: match.matchScore
+    };
+  });
+}
   const files = await getLibrary(token);
   const match = findBestFile(files, episode);
 
