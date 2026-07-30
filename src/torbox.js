@@ -99,22 +99,3 @@ export async function findTorBoxEpisodeStreams(
     };
   });
 }
-  const files = await getLibrary(token);
-  const match = findBestFile(files, episode);
-
-  if (!match) return null;
-
-  const params = new URLSearchParams({
-    token: token.trim(),
-    torrent_id: String(match.torrentId),
-    file_id: String(match.fileId),
-    redirect: "true",
-    append_name: "true"
-  });
-
-  return {
-    url: `${API}/torrents/requestdl?${params}`,
-    filename: basename(match.path),
-    bytes: match.bytes || 0
-  };
-}
