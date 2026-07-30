@@ -11,7 +11,7 @@ const baseManifest = {
   types: ["series"],
   catalogs: [],
   idPrefixes: ["NR"],
-  behaviorHints: { configurable: true, configurationRequired: true }
+  behaviorHints: { configurable: false, configurationRequired: false }
 };
 
 function json(res, status, payload, cache = "no-store") {
