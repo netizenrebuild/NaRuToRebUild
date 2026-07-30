@@ -1,4 +1,7 @@
-import { basename, findBestFile } from "./matcher.js";
+import {
+  basename,
+  findMatchingFiles
+} from "./matcher.js";
 
 const API = "https://api.real-debrid.com/rest/1.0";
 const indexCaches = new Map();
@@ -99,25 +102,67 @@ export async function validateToken(rdToken, fetchImpl = fetch) {
   return { username: user?.username || "Real-Debrid user" };
 }
 
-export async function findEpisodeStream(episode, rdToken, fetchImpl = fetch) {
-  const files = await buildLibraryIndex(rdToken, fetchImpl);
-  const match = findBestFile(files, episode);
-  if (!match) return null;
+export async function findEpisodeStreams(
+  episode,
+  rdToken,
+  fetchImpl = fetch
+) {
+  const files = await buildLibraryIndex(
+    rdToken,
+    fetchImpl
+  );
 
-  const body = new URLSearchParams({ link: match.restrictedLink });
-  const unrestricted = await request(rdToken, "/unrestrict/link", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  }, fetchImpl);
+  const matches = findMatchingFiles(
+    files,
+    episode
+  ).slice(0, 10);
 
-  if (!unrestricted?.download) throw new Error("Real-Debrid did not return a download URL");
-  return {
-    url: unrestricted.download,
-    filename: unrestricted.filename || basename(match.path),
-    bytes: match.bytes || unrestricted.filesize || 0,
-    score: match.matchScore
-  };
+  const streams = [];
+
+  for (const match of matches) {
+    try {
+      const body = new URLSearchParams({
+        link: match.restrictedLink
+      });
+
+      const unrestricted = await request(
+        rdToken,
+        "/unrestrict/link",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded"
+          },
+          body
+        },
+        fetchImpl
+      );
+
+      if (!unrestricted?.download) {
+        continue;
+      }
+
+      streams.push({
+        url: unrestricted.download,
+        filename:
+          unrestricted.filename ||
+          basename(match.path),
+        bytes:
+          match.bytes ||
+          unrestricted.filesize ||
+          0,
+        score: match.matchScore
+      });
+    } catch (error) {
+      console.error(
+        "Could not unrestrict matching RD file:",
+        error
+      );
+    }
+  }
+
+  return streams;
 }
 
 export function clearLibraryCache() {
