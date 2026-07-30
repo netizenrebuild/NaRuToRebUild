@@ -151,7 +151,7 @@ export function scoreFilename(filename, episode) {
    * season number, such as 1b when 1a is expected.
    */
   const anyEditCode =
-    file.match(/\b\d+[a-z]\b/i)?.[0] || null;
+    file.match(/\b\d{1,2}[a-z]\b/i)?.[0] || null;
 
   if (
     editCode &&
