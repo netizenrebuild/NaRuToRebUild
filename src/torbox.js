@@ -84,14 +84,17 @@ export async function findTorBoxEpisodeStreams(
   const matches = findMatchingFiles(files, episode);
 
   console.log(
-    "TORBOX_DEBUG",
-    JSON.stringify({
-      episode,
-      fileCount: files.length,
-      firstFile: files[0] || null,
-      matches: matches.length
-    })
-  );
+  "TORBOX_DEBUG",
+  JSON.stringify({
+    episode,
+    fileCount: files.length,
+    firstFilePath: files[0]?.path,
+    firstFiveFiles: files
+      .slice(0, 5)
+      .map((f) => f.path),
+    matches: matches.length
+  })
+);
 
   return matches.slice(0, 10).map((match) => {
     const params = new URLSearchParams({
