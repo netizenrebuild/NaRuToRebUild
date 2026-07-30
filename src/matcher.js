@@ -101,8 +101,20 @@ export function scoreFilename(filename, episode) {
    */
   const code = episodeCode(episode);
 
-  if (containsEpisodeCode(filename, code)) {
+  const isRebuildFilename =
+    file.includes("rebuild of naruto") ||
+    file.includes("naruto rebuild");
+
+  if (containsEpisodeCode(filename, code) && isRebuildFilename) {
     score += 100;
+  }
+
+  /*
+ * Reject ordinary Naruto releases that only happen to use
+ * the same S01E01 numbering.
+ */
+  if (containsEpisodeCode(filename, code) && !isRebuildFilename) {
+    return 0;
   }
 
   /*
