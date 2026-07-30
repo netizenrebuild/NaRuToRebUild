@@ -1,6 +1,7 @@
 import {
   basename,
-  findMatchingFiles
+  findMatchingFiles,
+  scoreFilename
 } from "./matcher.js";
 
 const API = "https://api.torbox.app/v1/api";
@@ -79,22 +80,25 @@ export async function findTorBoxEpisodeStreams(
   episode,
   token
 ) {
-  const files = await getLibrary(token);
+const files = await getLibrary(token);
+const matches = findMatchingFiles(files, episode);
 
-  const matches = findMatchingFiles(files, episode);
+const episodeFiles = files
+  .filter((file) => /s01e08/i.test(file.path))
+  .map((file) => ({
+    path: file.path,
+    score: scoreFilename(file.path, episode)
+  }));
 
-  console.log(
-    "TORBOX_DEBUG",
-    JSON.stringify({
-      episode,
-      fileCount: files.length,
-      narutoFiles: files
-        .filter(f => /naruto/i.test(f.path))
-        .slice(0, 5)
-        .map(f => f.path),
-      matches: matches.length
-    })
-  );
+console.log(
+  "TORBOX_DEBUG",
+  JSON.stringify({
+    episode,
+    fileCount: files.length,
+    episodeFiles,
+    matches: matches.length
+  })
+);
 
   return matches.slice(0, 10).map((match) => {
     const params = new URLSearchParams({
