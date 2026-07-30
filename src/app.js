@@ -431,3 +431,18 @@ return json(res, 200, {
     }
   }))
 });
+  } catch (error) {
+    console.error(error);
+
+    if (/\/stream\//.test(url.pathname)) {
+      return json(res, 200, {
+        streams: []
+      });
+    }
+
+    return json(res, 500, {
+      ok: false,
+      error: error.message
+    });
+  }
+}
