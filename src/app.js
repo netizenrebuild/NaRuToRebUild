@@ -1,10 +1,11 @@
 import { getEpisode } from "./rebuild.js";
 import {
-  findEpisodeStream,
+  findEpisodeStreams,
   validateToken
 } from "./realdebrid.js";
+
 import {
-  findTorBoxEpisodeStream,
+  findTorBoxEpisodeStreams,
   validateTorBoxToken
 } from "./torbox.js";
 import {
@@ -384,58 +385,49 @@ ${providerName} account through this addon.
       });
     }
 
-    const stream =
-      config.provider === "torbox"
-        ? await findTorBoxEpisodeStream(
-            episode,
-            config.token
-          )
-        : await findEpisodeStream(
-            episode,
-            config.token
-          );
+    const matches =
+  config.provider === "torbox"
+    ? await findTorBoxEpisodeStreams(
+        episode,
+        config.token
+      )
+    : await findEpisodeStreams(
+        episode,
+        config.token
+      );
 
-    if (!stream) {
-      return json(res, 200, {
-        streams: []
-      });
-    }
-
-    const providerName =
-      config.provider === "torbox"
-        ? "TorBox Library"
-        : "Real-Debrid Library";
-
-    return json(res, 200, {
-      streams: [{
-        name: providerName,
-        title:
-          `${episode.title}\n${stream.filename}` +
-          `${
-            stream.bytes
-              ? ` • ${formatBytes(stream.bytes)}`
-              : ""
-          }`,
-        url: stream.url,
-        behaviorHints: {
-          bingeGroup:
-            `naruto-rebuild-${config.provider}`,
-          notWebReady: false
-        }
-      }]
-    });
-  } catch (error) {
-    console.error(error);
-
-    if (/\/stream\//.test(url.pathname)) {
-      return json(res, 200, {
-        streams: []
-      });
-    }
-
-    return json(res, 500, {
-      ok: false,
-      error: error.message
-    });
-  }
+if (!matches.length) {
+  return json(res, 200, {
+    streams: []
+  });
 }
+
+const providerName =
+  config.provider === "torbox"
+    ? "TorBox Library"
+    : "Real-Debrid Library";
+
+return json(res, 200, {
+  streams: matches.map((stream, index) => ({
+    name:
+      matches.length > 1
+        ? `${providerName} ${index + 1}`
+        : providerName,
+
+    title:
+      `${episode.title}\n${stream.filename}` +
+      `${
+        stream.bytes
+          ? ` • ${formatBytes(stream.bytes)}`
+          : ""
+      }`,
+
+    url: stream.url,
+
+    behaviorHints: {
+      bingeGroup:
+        `naruto-rebuild-${config.provider}`,
+      notWebReady: false
+    }
+  }))
+});
