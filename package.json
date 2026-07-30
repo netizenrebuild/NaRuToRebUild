@@ -1,0 +1,13 @@
+{
+  "name": "naruto-rebuild-real-debrid",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Multi-user Stremio addon for Rebuild of Naruto episodes in each user's Real-Debrid library.",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  }
+}
