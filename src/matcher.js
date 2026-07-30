@@ -44,45 +44,62 @@ function paddedNumber(value) {
 }
 
 function episodeCode(episode) {
-  /*
-   * Rebuild metadata normally includes season and episode.
-   * Example:
-   * season: 1
-   * episode: 2
-   * becomes S01E02.
-   */
+  const season = Number(episode?.season);
+  const number = Number(
+    episode?.episode ?? episode?.episodeNumber
+  );
+
   if (
-    Number.isFinite(Number(episode?.season)) &&
-    Number.isFinite(Number(episode?.episode))
+    !Number.isFinite(season) ||
+    !Number.isFinite(number)
   ) {
-    return `s${paddedNumber(episode.season)}e${paddedNumber(
-      episode.episode
-    )}`;
+    return null;
   }
 
-  /*
-   * Some Stremio metadata uses episodeNumber instead.
-   */
-  if (
-    Number.isFinite(Number(episode?.season)) &&
-    Number.isFinite(Number(episode?.episodeNumber))
-  ) {
-    return `s${paddedNumber(episode.season)}e${paddedNumber(
-      episode.episodeNumber
-    )}`;
-  }
+  return `s${paddedNumber(season)}e${paddedNumber(number)}`;
+}
 
-  return null;
+function expectedEditCode(episode) {
+  /*
+   * Example title:
+   * Naruto 1a - Academy Days
+   *
+   * Returns:
+   * 1a
+   */
+  const prefix = normalize(titlePrefix(episode?.title || ""));
+  return prefix.match(/\b(\d+[a-z])$/i)?.[1] || null;
+}
+
+function descriptiveTitle(episode) {
+  const parts = String(episode?.title || "")
+    .split(/\s+-\s+/);
+
+  return normalize(parts.slice(1).join(" - "));
+}
+
+function compact(value = "") {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function containsEpisodeCode(filename, code) {
-  if (!code) return false;
+  return Boolean(
+    code &&
+    compact(filename).includes(compact(code))
+  );
+}
 
-  const compactFilename = filename
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+function containsEditCode(filename, editCode) {
+  if (!editCode) return false;
 
-  return compactFilename.includes(code);
+  const file = normalize(filename);
+
+  return new RegExp(
+    `(?:^|\\s)${editCode}(?:\\s|$)`,
+    "i"
+  ).test(file);
 }
 
 export function scoreFilename(filename, episode) {
@@ -94,69 +111,110 @@ export function scoreFilename(filename, episode) {
 
   if (!file || !fullTitle || !prefix) return 0;
 
-  let score = 0;
-
-  /*
-   * Strongest match: TorBox-style S01E01 numbering.
-   */
   const code = episodeCode(episode);
+  const editCode = expectedEditCode(episode);
+  const description = descriptiveTitle(episode);
 
-  const isRebuildFilename =
+  const hasSeasonEpisode =
+    containsEpisodeCode(filename, code);
+
+  const hasCorrectEditCode =
+    containsEditCode(filename, editCode);
+
+  const hasDescription =
+    description.length >= 4 &&
+    file.includes(description);
+
+  const explicitlySaysRebuild =
     file.includes("rebuild of naruto") ||
     file.includes("naruto rebuild");
 
-  if (containsEpisodeCode(filename, code) && isRebuildFilename) {
-    score += 100;
-  }
-
   /*
- * Reject ordinary Naruto releases that only happen to use
- * the same S01E01 numbering.
- */
-  if (containsEpisodeCode(filename, code) && !isRebuildFilename) {
+   * Reject ordinary Naruto season files.
+   *
+   * A file using S01E01 must also have at least one strong
+   * Rebuild identifier:
+   *
+   * - the correct edit code, such as 1a
+   * - "Rebuild of Naruto"
+   */
+  if (
+    hasSeasonEpisode &&
+    !hasCorrectEditCode &&
+    !explicitlySaysRebuild
+  ) {
     return 0;
   }
 
   /*
-   * Original Real-Debrid title matching.
+   * Reject another Rebuild edit with the same title or
+   * season number, such as 1b when 1a is expected.
+   */
+  const anyEditCode =
+    file.match(/\b\d+[a-z]\b/i)?.[0] || null;
+
+  if (
+    editCode &&
+    anyEditCode &&
+    anyEditCode !== editCode
+  ) {
+    return 0;
+  }
+
+  let score = 0;
+
+  /*
+   * Supported examples:
+   *
+   * Rebuild of Naruto - S01E01 - Academy Days
+   * Naruto - S01E01 (1a) - Academy Days
+   * Naruto 1A S01E01 - Academy Days
+   */
+  if (
+    hasSeasonEpisode &&
+    hasCorrectEditCode &&
+    hasDescription
+  ) {
+    score = 130;
+  } else if (
+    hasSeasonEpisode &&
+    explicitlySaysRebuild &&
+    hasDescription
+  ) {
+    score = 125;
+  } else if (
+    hasSeasonEpisode &&
+    hasCorrectEditCode
+  ) {
+    score = 120;
+  } else if (
+    hasSeasonEpisode &&
+    explicitlySaysRebuild
+  ) {
+    score = 115;
+  }
+
+  /*
+   * Original title-based matching.
    */
   if (file === fullTitle) {
-    score = Math.max(score, 100);
+    score = Math.max(score, 110);
   } else if (
     file.startsWith(fullTitle + " ") ||
     file.includes(fullTitle)
   ) {
-    score = Math.max(score, 95);
+    score = Math.max(score, 105);
   } else if (
     file.startsWith(prefix + " ") ||
     file === prefix
   ) {
-    score = Math.max(score, 80);
+    score = Math.max(score, 90);
   }
 
-  /*
-   * Match the descriptive episode title.
-   * For example:
-   * "Naruto 1a - Academy Days"
-   * can match:
-   * "Rebuild of Naruto - S01E01 - Academy Days"
-   */
-  const titleParts = episode.title.split(/\s+-\s+/);
-  const descriptiveTitle = normalize(
-    titleParts.slice(1).join(" - ")
-  );
-
-  if (
-    descriptiveTitle &&
-    descriptiveTitle.length >= 4 &&
-    file.includes(descriptiveTitle)
-  ) {
-    score += 25;
+  if (hasDescription) {
+    score += 15;
   }
 
-  /*
-   * General word overlap.
-   */
   const importantWords = fullTitle
     .split(" ")
     .filter((word) => word.length >= 4);
@@ -167,50 +225,32 @@ export function scoreFilename(filename, episode) {
 
   score += Math.min(overlap * 2, 10);
 
-  /*
-   * Avoid matching Naruto 5b when 5a is expected.
-   * Only apply this penalty when the filename itself uses
-   * the old lettered naming format. Do not penalize S01E01
-   * style filenames.
-   */
-  const expectedLetterCode =
-    prefix.match(/\b(\d+[a-z])$/i)?.[1];
-
-  const filenameHasLetterCode =
-    /\b\d+[a-z]\b/i.test(file);
-
-  if (
-    expectedLetterCode &&
-    filenameHasLetterCode &&
-    !new RegExp(
-      `\\b${expectedLetterCode}\\b`,
-      "i"
-    ).test(file)
-  ) {
-    score -= 60;
-  }
-
   return Math.max(score, 0);
 }
 
-export function findBestFile(files, episode) {
-  return (
-    files
-      .filter((entry) =>
-        isVideo(entry.path || entry.filename || "")
+export function findMatchingFiles(files, episode) {
+  return files
+    .filter((entry) =>
+      isVideo(entry.path || entry.filename || "")
+    )
+    .map((entry) => ({
+      ...entry,
+      matchScore: scoreFilename(
+        entry.path || entry.filename || "",
+        episode
       )
-      .map((entry) => ({
-        ...entry,
-        matchScore: scoreFilename(
-          entry.path || entry.filename,
-          episode
-        )
-      }))
-      .filter((entry) => entry.matchScore >= 70)
-      .sort(
-        (a, b) =>
-          b.matchScore - a.matchScore ||
-          (b.bytes || 0) - (a.bytes || 0)
-      )[0] || null
-  );
+    }))
+    .filter((entry) => entry.matchScore >= 70)
+    .sort(
+      (a, b) =>
+        b.matchScore - a.matchScore ||
+        (b.bytes || 0) - (a.bytes || 0)
+    );
+}
+
+/*
+ * Kept for compatibility with any old code still using it.
+ */
+export function findBestFile(files, episode) {
+  return findMatchingFiles(files, episode)[0] || null;
 }
